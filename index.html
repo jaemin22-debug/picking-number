@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UCC 발표 번호 뽑기 순서 추첨기</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Pretendard & Noto Sans KR 웹폰트 -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', 'Noto Sans KR', 'sans-serif'],
+          },
+          keyframes: {
+            popIn: {
+              '0%': { opacity: '0', transform: 'scale(0.88) translateY(8px)' },
+              '70%': { opacity: '1', transform: 'scale(1.03) translateY(-2px)' },
+              '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { boxShadow: '0 0 0 0 rgba(79, 70, 229, 0.45)' },
+              '50%': { boxShadow: '0 0 0 12px rgba(79, 70, 229, 0)' },
+            },
+            shakeCard: {
+              '0%, 100%': { transform: 'translateX(0)' },
+              '25%': { transform: 'translateX(-3px) rotate(-0.6deg)' },
+              '75%': { transform: 'translateX(3px) rotate(0.6deg)' },
+            }
+          },
+          animation: {
+            'pop-in': 'popIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+            'pulse-glow': 'pulseGlow 2.2s infinite',
+            'shake-card': 'shakeCard 0.14s ease-in-out infinite',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top left, #eef2ff 0%, #f8fafc 45%, #f1f5f9 100%);
+      color: #0f172a;
+      user-select: none;
+    }
+
+    /* 스크롤바 최소화 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 sm:p-5 lg:p-6">
+
+  <!-- 상단 헤더 및 유틸리티 바 -->
+  <header class="max-w-7xl w-full mx-auto bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-sm px-4 py-3 sm:px-6 sm:py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+        <!-- 상자 뽑기 아이콘 SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900">UCC 발표 번호 뽑기 순서 추첨기</h1>
+          <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            총 11명
+          </span>
+        </div>
+        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+          추첨 상자에서 발표 순번표를 먼저 뽑으러 나올 학생 순서를 랜덤으로 결정합니다.
+        </p>
+      </div>
+    </div>
+
+    <!-- 우측 옵션 컨트롤 (학번 표시, 효과음, 결과 복사, 초기화) -->
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- 학번 표시 토글 -->
+      <button id="toggleIdBtn" type="button" onclick="toggleStudentIds()"
+        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-95"
+        title="강의실 스크린 투사 시 학번 숨기기/표시">
+        <span id="idEyeIcon">👁️</span>
+        <span id="idToggleText">학번 표시 중</span>
+      </button>
+
+      <!-- 효과음 음소거 토글 -->
+      <button id="toggleSoundBtn" type="button" onclick="toggleSound()"
+        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-95"
+        title="추첨 효과음 켜기/끄기">
+        <span id="soundIcon">🔊</span>
+        <span id="soundText">효과음 켜짐</span>
+      </button>
+
+      <!-- 결과 복사 -->
+      <button id="copyBtn" type="button" onclick="copyOrderToClipboard()"
+        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition active:scale-95">
+        <span>📋</span>
+        <span>순서 복사</span>
+      </button>
+
+      <!-- 초기화 -->
+      <button id="resetBtn" type="button" onclick="resetAll()"
+        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition active:scale-95">
+        <span>🔄</span>
+        <span>초기화</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 메인 컨트롤 & 결과 보드 -->
+  <main class="max-w-7xl w-full mx-auto my-3 sm:my-4 flex-1 flex flex-col gap-4">
+
+    <!-- 중앙 액션 패널 -->
+    <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-5 flex flex-col lg:flex-row items-center justify-between gap-4">
+      <!-- 현재 상태 및 스포트라이트 전광판 -->
+      <div class="flex items-center gap-3.5 w-full lg:w-auto">
+        <div id="statusBadge" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-100 text-amber-700 border border-amber-200 flex flex-col items-center justify-center shrink-0 font-black">
+          <span class="text-[10px] uppercase tracking-wider leading-none">NEXT</span>
+          <span id="nextRankDisplay" class="text-lg sm:text-xl leading-tight mt-0.5">1번</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div id="spotlightLabel" class="text-xs sm:text-sm font-bold text-indigo-600">
+            버튼을 눌러 뽑기 순서를 추첨하세요!
+          </div>
+          <div id="spotlightMain" class="text-lg sm:text-2xl font-black text-slate-900 truncate mt-0.5">
+            대기 중인 학생 11명
+          </div>
+        </div>
+      </div>
+
+      <!-- 핵심 실행 버튼 2종 -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto">
+        <!-- 원클릭 전체 셔플 버튼 -->
+        <button id="shuffleAllBtn" type="button" onclick="startFullShuffle()"
+          class="animate-pulse-glow flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:shadow-none disabled:animate-none text-white font-extrabold text-base sm:text-lg shadow-lg shadow-indigo-200 transition transform active:scale-95 cursor-pointer">
+          <span class="text-xl">🎲</span>
+          <span>뽑기 순서 전체 셔플!</span>
+        </button>
+
+        <!-- 한 명씩 긴장감 있게 뽑기 버튼 -->
+        <button id="drawOneBtn" type="button" onclick="drawNextStudent()"
+          class="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold text-sm sm:text-base shadow-md transition transform active:scale-95 cursor-pointer">
+          <span class="text-lg">🎯</span>
+          <span id="drawOneBtnText">1번 주자부터 한 명씩 뽑기</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 1번 ~ 11번 뽑기 순서 슬롯 그리드 (1080p/720p 한 화면에 깔끔히 표시) -->
+    <section class="flex-1 flex flex-col">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5 px-1">
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm sm:text-base font-extrabold text-slate-800">
+            📦 상자 뽑기 입장 순서 (1번 ~ 11번 주자)
+          </h2>
+          <span id="progressPill" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200/80 text-slate-700">
+            추첨 0 / 11명 완료
+          </span>
+        </div>
+        <p class="text-xs sm:text-sm text-slate-500 font-medium">
+          💡 순서가 정해진 후 학생 카드를 클릭하면 <span class="text-emerald-700 font-bold">'번호 뽑기 완료 ✓'</span>로 체크됩니다.
+        </p>
+      </div>
+
+      <!-- 11개 슬롯 카드 컨테이너 -->
+      <div id="slotsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
+        <!-- JS로 1번~11번 슬롯 동적 렌더링 -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 하단 대기 명단 요약 바 -->
+  <footer class="max-w-7xl w-full mx-auto bg-white/80 border border-slate-200/80 rounded-xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
+    <div id="remainingPoolText" class="font-medium text-slate-600 truncate">
+      미추첨 대기 명단: 전원 대기 중
+    </div>
+    <div class="shrink-0 text-slate-400">
+      UCC 발표 번호 추첨 도우미 · 클릭하여 뽑기 완료 체크 가능
+    </div>
+  </footer>
+
+  <!-- 토스트 알림 메시지 박스 (alert 대신 사용) -->
+  <div id="toastBox" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-300 transform translate-y-2">
+    <div id="toastContent" class="bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-bold flex items-center gap-2 border border-slate-700">
+      <span id="toastIcon">✅</span>
+      <span id="toastMsg">알림 메시지</span>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. 학생 원본 데이터 (첨부 파일 기준 정확히 11명)
+    // =========================================================================
+    const STUDENTS = [
+      { id: '237202', name: '곽기흔' },
+      { id: '237209', name: '신태수' },
+      { id: '237214', name: '최현' },
+      { id: '246007', name: '김유림' },
+      { id: '246205', name: '김예빈' },
+      { id: '246412', name: '조수현' },
+      { id: '256201', name: '김서원' },
+      { id: '256202', name: '김서하' },
+      { id: '256205', name: '김지현' },
+      { id: '256211', name: '정예영' },
+      { id: '256213', name: '조유나' }
+    ];
+
+    // =========================================================================
+    // 2. 애플리케이션 상태 관리
+    // =========================================================================
+    let state = {
+      // 0~10 인덱스: 각 순번(1번 주자 ~ 11번 주자)에 배정된 학생 객체 또는 null
+      assignedSlots: Array(STUDENTS.length).fill(null),
+      // 각 순번의 학생이 실제 상자에서 번호표를 뽑았는지 여부 (체크 표시용)
+      pickedChecked: Array(STUDENTS.length).fill(false),
+      // 현재 슬롯 애니메이션 중 표시되는 임시 이름들
+      rollingNames: Array(STUDENTS.length).fill(null),
+      // 애니메이션 진행 여부
+      isAnimating: false,
+      // 학번 표시 여부
+      showStudentId: true,
+      // 효과음 활성화 여부
+      soundEnabled: true
+    };
+
+    // =========================================================================
+    // 3. Web Audio API 합성 효과음 엔진 (외부 파일 불필요)
+    // =========================================================================
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioCtx = new AudioContext();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // 셔플 중 틱(Tick) 사운드
+    function playTickSound(pitch = 520) {
+      if (!state.soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(pitch, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.055);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.06);
+      } catch (e) {
+        // 오디오 차단 환경 무시
+      }
+    }
+
+    // 추첨 확정 팡파르(화음) 사운드
+    function playRevealSound(isGrand = false) {
+      if (!state.soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const notes = isGrand ? [523.25, 659.25, 783.99, 1046.50] : [587.33, 880.00];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          const startTime = ctx.currentTime + idx * 0.065;
+          osc.frequency.setValueAtTime(freq, startTime);
+          gain.gain.setValueAtTime(0.12, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + 0.36);
+        });
+      } catch (e) {
+        // 오디오 차단 환경 무시
+      }
+    }
+
+    // 체크 토글 사운드
+    function playCheckSound(checked) {
+      if (!state.soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(checked ? 740 : 440, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.13);
+      } catch (e) {}
+    }
+
+    // =========================================================================
+    // 4. 유틸리티 함수 (Fisher-Yates 셔플 & 토스트 메시지)
+    // =========================================================================
+    function fisherYatesShuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    let toastTimer = null;
+    function showToast(message, icon = '✅') {
+      const box = document.getElementById('toastBox');
+      document.getElementById('toastMsg').textContent = message;
+      document.getElementById('toastIcon').textContent = icon;
+
+      box.classList.remove('opacity-0', 'translate-y-2');
+      box.classList.add('opacity-100', 'translate-y-0');
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        box.classList.remove('opacity-100', 'translate-y-0');
+        box.classList.add('opacity-0', 'translate-y-2');
+      }, 2600);
+    }
+
+    function getRemainingStudents() {
+      const assignedIds = new Set(
+        state.assignedSlots.filter(Boolean).map(s => s.id)
+      );
+      return STUDENTS.filter(s => !assignedIds.has(s.id));
+    }
+
+    // =========================================================================
+    // 5. 핵심 추첨 로직 (전체 셔플 & 한 명씩 뽑기)
+    // =========================================================================
+
+    // [기능 A] 버튼 한 번으로 11명 전체 뽑기 순서 셔플
+    function startFullShuffle() {
+      if (state.isAnimating) return;
+
+      state.isAnimating = true;
+      state.pickedChecked = Array(STUDENTS.length).fill(false);
+      updateControlsState();
+
+      const spotlightLabel = document.getElementById('spotlightLabel');
+      const spotlightMain = document.getElementById('spotlightMain');
+      spotlightLabel.textContent = '🎲 전체 학생 뽑기 순서를 무작위로 섞는 중...';
+      spotlightMain.textContent = '두구두구두구... 잠시만 기다려주세요!';
+
+      const duration = 1500; // 1.5초 동안 경쾌한 슬롯 회전
+      const intervalMs = 65;
+      let elapsed = 0;
+
+      const timer = setInterval(() => {
+        elapsed += intervalMs;
+        // 모든 슬롯에 랜덤 이름 회전 표시
+        const randomPool = fisherYatesShuffle(STUDENTS);
+        state.rollingNames = randomPool;
+        renderSlots(true);
+
+        // 점점 높아지는 틱 사운드
+        const progress = Math.min(elapsed / duration, 1);
+        playTickSound(380 + progress * 340);
+
+        if (elapsed >= duration) {
+          clearInterval(timer);
+          // 최종 결과 확정
+          const finalOrder = fisherYatesShuffle(STUDENTS);
+          state.assignedSlots = finalOrder;
+          state.rollingNames = Array(STUDENTS.length).fill(null);
+          state.isAnimating = false;
+
+          playRevealSound(true);
+          renderAll(true);
+          showToast('11명의 상자 뽑기 순서가 모두 결정되었습니다!', '🎉');
+        }
+      }, intervalMs);
+    }
+
+    // [기능 B] 다음 순번 한 명씩 긴장감 있게 뽑기
+    function drawNextStudent() {
+      if (state.isAnimating) return;
+
+      const nextIndex = state.assignedSlots.findIndex(slot => slot === null);
+      if (nextIndex === -1) {
+        showToast('이미 11명의 순서가 모두 정해졌습니다. 다시 하려면 초기화를 눌러주세요.', 'ℹ️');
+        return;
+      }
+
+      const remaining = getRemainingStudents();
+      if (remaining.length === 0) return;
+
+      // 마지막 1명이 남았을 때는 즉시 배정
+      if (remaining.length === 1) {
+        state.assignedSlots[nextIndex] = remaining[0];
+        playRevealSound(true);
+        renderAll(true, nextIndex);
+        showToast(`마지막 11번 주자는 ${remaining[0].name} 학생입니다!`, '🎯');
+        return;
+      }
+
+      state.isAnimating = true;
+      updateControlsState();
+
+      const rankNum = nextIndex + 1;
+      const spotlightLabel = document.getElementById('spotlightLabel');
+      const spotlightMain = document.getElementById('spotlightMain');
+      spotlightLabel.textContent = `🎯 ${rankNum}번 뽑기 주자 추첨 중...`;
+
+      const duration = 1100;
+      const intervalMs = 60;
+      let elapsed = 0;
+
+      const timer = setInterval(() => {
+        elapsed += intervalMs;
+        const candidate = remaining[Math.floor(Math.random() * remaining.length)];
+        state.rollingNames[nextIndex] = candidate;
+        spotlightMain.textContent = `${rankNum}번 주자 후보: ${candidate.name}`;
+        renderSlots(false, nextIndex);
+
+        const progress = Math.min(elapsed / duration, 1);
+        playTickSound(420 + progress * 320);
+
+        if (elapsed >= duration) {
+          clearInterval(timer);
+          const chosen = remaining[Math.floor(Math.random() * remaining.length)];
+          state.assignedSlots[nextIndex] = chosen;
+          state.rollingNames[nextIndex] = null;
+          state.isAnimating = false;
+
+          const isAllDone = state.assignedSlots.every(Boolean);
+          playRevealSound(isAllDone);
+          renderAll(true, nextIndex);
+          showToast(`${rankNum}번 주자: ${chosen.name} 학생 당첨!`, '✨');
+        }
+      }, intervalMs);
+    }
+
+    // =========================================================================
+    // 6. 인터랙션 핸들러 (뽑기 완료 체크, 학번 토글, 음소거, 복사, 초기화)
+    // =========================================================================
+
+    // 카드 클릭 시 '번호 뽑기 완료' 체크 토글
+    function togglePickedCheck(index) {
+      if (state.isAnimating) return;
+      const student = state.assignedSlots[index];
+      if (!student) {
+        showToast('먼저 추첨 버튼을 눌러 순서를 정해주세요.', '💡');
+        return;
+      }
+      state.pickedChecked[index] = !state.pickedChecked[index];
+      playCheckSound(state.pickedChecked[index]);
+      renderSlots(false);
+      updateHeaderStatus();
+    }
+
+    // 학번 표시/숨기기 토글
+    function toggleStudentIds() {
+      state.showStudentId = !state.showStudentId;
+      document.getElementById('idEyeIcon').textContent = state.showStudentId ? '👁️' : '🙈';
+      document.getElementById('idToggleText').textContent = state.showStudentId ? '학번 표시 중' : '학번 숨김';
+      renderSlots(false);
+      updateFooterRemaining();
+    }
+
+    // 효과음 켜기/끄기 토글
+    function toggleSound() {
+      state.soundEnabled = !state.soundEnabled;
+      document.getElementById('soundIcon').textContent = state.soundEnabled ? '🔊' : '🔇';
+      document.getElementById('soundText').textContent = state.soundEnabled ? '효과음 켜짐' : '음소거됨';
+      if (state.soundEnabled) playTickSound(660);
+    }
+
+    // 결과 클립보드 복사 (iFrame 호환 execCommand 방식 포함)
+    function copyOrderToClipboard() {
+      const assignedCount = state.assignedSlots.filter(Boolean).length;
+      if (assignedCount === 0) {
+        showToast('복사할 추첨 결과가 아직 없습니다. 먼저 순서를 추첨해주세요.', '⚠️');
+        return;
+      }
+
+      const lines = ['[UCC 발표 번호 뽑기 입장 순서]'];
+      state.assignedSlots.forEach((student, idx) => {
+        if (student) {
+          const idPart = state.showStudentId ? ` (${student.id})` : '';
+          const checkPart = state.pickedChecked[idx] ? ' [뽑기완료]' : '';
+          lines.push(`${idx + 1}번 주자: ${student.name}${idPart}${checkPart}`);
+        } else {
+          lines.push(`${idx + 1}번 주자: (미정)`);
+        }
+      });
+
+      const textToCopy = lines.join('\n');
+
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = textToCopy;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('뽑기 순서가 클립보드에 복사되었습니다!', '📋');
+      } catch (err) {
+        showToast('클립보드 복사에 실패했습니다.', '❌');
+      }
+    }
+
+    // 전체 초기화
+    function resetAll() {
+      if (state.isAnimating) return;
+      state.assignedSlots = Array(STUDENTS.length).fill(null);
+      state.pickedChecked = Array(STUDENTS.length).fill(false);
+      state.rollingNames = Array(STUDENTS.length).fill(null);
+      playTickSound(350);
+      renderAll(false);
+      showToast('모든 순서가 초기화되었습니다.', '🔄');
+    }
+
+    // =========================================================================
+    // 7. UI 렌더링 함수
+    // =========================================================================
+    function updateControlsState() {
+      const shuffleAllBtn = document.getElementById('shuffleAllBtn');
+      const drawOneBtn = document.getElementById('drawOneBtn');
+      const drawOneBtnText = document.getElementById('drawOneBtnText');
+      const resetBtn = document.getElementById('resetBtn');
+
+      const nextIndex = state.assignedSlots.findIndex(slot => slot === null);
+      const isComplete = nextIndex === -1;
+
+      shuffleAllBtn.disabled = state.isAnimating;
+      drawOneBtn.disabled = state.isAnimating || isComplete;
+      resetBtn.disabled = state.isAnimating;
+
+      if (isComplete) {
+        drawOneBtnText.textContent = '11명 추첨 완료!';
+      } else {
+        drawOneBtnText.textContent = `${nextIndex + 1}번 주자 한 명씩 뽑기`;
+      }
+    }
+
+    function updateHeaderStatus() {
+      const assignedCount = state.assignedSlots.filter(Boolean).length;
+      const checkedCount = state.pickedChecked.filter(Boolean).length;
+      const nextIndex = state.assignedSlots.findIndex(slot => slot === null);
+
+      const progressPill = document.getElementById('progressPill');
+      if (assignedCount === STUDENTS.length) {
+        progressPill.textContent = `추첨 완료 (상자 뽑기 진행: ${checkedCount} / 11명)`;
+        progressPill.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
+      } else {
+        progressPill.textContent = `추첨 ${assignedCount} / 11명 완료`;
+        progressPill.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200/80 text-slate-700';
+      }
+
+      const nextRankDisplay = document.getElementById('nextRankDisplay');
+      const statusBadge = document.getElementById('statusBadge');
+      const spotlightLabel = document.getElementById('spotlightLabel');
+      const spotlightMain = document.getElementById('spotlightMain');
+
+      if (state.isAnimating) return;
+
+      if (assignedCount === 0) {
+        nextRankDisplay.textContent = '1번';
+        statusBadge.className = 'w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-100 text-amber-700 border border-amber-200 flex flex-col items-center justify-center shrink-0 font-black';
+        spotlightLabel.textContent = '버튼을 눌러 뽑기 순서를 추첨하세요!';
+        spotlightMain.textContent = '대기 중인 학생 11명';
+      } else if (nextIndex !== -1) {
+        nextRankDisplay.textContent = `${nextIndex + 1}번`;
+        statusBadge.className = 'w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-indigo-100 text-indigo-700 border border-indigo-200 flex flex-col items-center justify-center shrink-0 font-black';
+        const lastIdx = nextIndex - 1;
+        const lastStudent = state.assignedSlots[lastIdx];
+        spotlightLabel.textContent = `방금 결정된 ${lastIdx + 1}번 주자`;
+        spotlightMain.textContent = `${lastStudent.name}${state.showStudentId ? ` (${lastStudent.id})` : ''} → 다음은 ${nextIndex + 1}번 주자 차례`;
+      } else {
+        nextRankDisplay.textContent = '완료';
+        statusBadge.className = 'w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-100 text-emerald-700 border border-emerald-200 flex flex-col items-center justify-center shrink-0 font-black';
+
+        // 아직 뽑기 완료 체크가 안 된 첫 번째 주자 안내
+        const nextToWalkIdx = state.pickedChecked.findIndex(checked => !checked);
+        if (nextToWalkIdx !== -1) {
+          const walker = state.assignedSlots[nextToWalkIdx];
+          spotlightLabel.textContent = '📦 지금 상자 앞으로 나와서 번호를 뽑을 차례!';
+          spotlightMain.textContent = `${nextToWalkIdx + 1}번 주자: ${walker.name}${state.showStudentId ? ` (${walker.id})` : ''}`;
+        } else {
+          spotlightLabel.textContent = '🎊 모든 학생이 발표 번호 뽑기를 완료했습니다!';
+          spotlightMain.textContent = '뽑은 번호 순서대로 UCC 발표를 시작해 주세요.';
+        }
+      }
+    }
+
+    function updateFooterRemaining() {
+      const remaining = getRemainingStudents();
+      const footerEl = document.getElementById('remainingPoolText');
+      if (remaining.length === 0) {
+        footerEl.innerHTML = '<span class="text-emerald-700 font-bold">✓ 11명 전원 뽑기 순서 배정이 완료되었습니다.</span>';
+      } else if (remaining.length === STUDENTS.length) {
+        const names = remaining.map(s => state.showStudentId ? `${s.name}(${s.id})` : s.name).join(', ');
+        footerEl.textContent = `대기 명단 (11명): ${names}`;
+      } else {
+        const names = remaining.map(s => state.showStudentId ? `${s.name}(${s.id})` : s.name).join(', ');
+        footerEl.textContent = `남은 미추첨 인원 (${remaining.length}명): ${names}`;
+      }
+    }
+
+    function renderSlots(animateReveal = false, highlightIdx = -1) {
+      const grid = document.getElementById('slotsGrid');
+      grid.innerHTML = '';
+
+      STUDENTS.forEach((_, idx) => {
+        const rank = idx + 1;
+        const assigned = state.assignedSlots[idx];
+        const rolling = state.rollingNames[idx];
+        const isChecked = state.pickedChecked[idx];
+
+        // 1, 2, 3번 주자 강조 배지 스타일
+        let badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200';
+        if (assigned) {
+          if (rank === 1) badgeStyle = 'bg-amber-400 text-slate-950 border-amber-500 shadow-sm';
+          else if (rank === 2) badgeStyle = 'bg-slate-300 text-slate-900 border-slate-400';
+          else if (rank === 3) badgeStyle = 'bg-orange-200 text-orange-950 border-orange-300';
+          else badgeStyle = 'bg-indigo-600 text-white border-indigo-700';
+        }
+
+        // 카드 컨테이너 스타일
+        let cardClasses = 'relative rounded-2xl border p-3.5 sm:p-4 transition-all duration-200 flex items-center justify-between gap-3 ';
+        if (rolling) {
+          cardClasses += 'bg-indigo-50/90 border-indigo-400 shadow-md animate-shake-card';
+        } else if (assigned) {
+          if (isChecked) {
+            cardClasses += 'bg-emerald-50/70 border-emerald-300 opacity-75 cursor-pointer hover:opacity-95';
+          } else {
+            cardClasses += 'bg-white border-slate-200/90 shadow-sm hover:border-indigo-400 hover:shadow-md cursor-pointer';
+          }
+          if (animateReveal && (highlightIdx === -1 || highlightIdx === idx)) {
+            cardClasses += ' animate-pop-in';
+          }
+        } else {
+          cardClasses += 'bg-slate-50/80 border-dashed border-slate-300';
+        }
+
+        const card = document.createElement('div');
+        card.className = cardClasses;
+        if (assigned && !state.isAnimating) {
+          card.onclick = () => togglePickedCheck(idx);
+          card.title = '클릭하여 상자 뽑기 완료 여부 체크';
+        }
+
+        // 좌측: 순번 배지 + 학생 이름/학번
+        const displayStudent = rolling || assigned;
+        let nameHtml = '';
+        if (displayStudent) {
+          const idHtml = state.showStudentId
+            ? `<span class="text-xs sm:text-sm font-semibold ${rolling ? 'text-indigo-500' : 'text-slate-400'}">${displayStudent.id}</span>`
+            : '';
+          nameHtml = `
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="text-xl sm:text-2xl font-black tracking-tight ${isChecked ? 'line-through text-slate-500' : 'text-slate-900'}">
+                  ${displayStudent.name}
+                </span>
+                ${idHtml}
+              </div>
+              <span class="text-xs font-medium ${rolling ? 'text-indigo-600' : isChecked ? 'text-emerald-700' : 'text-slate-500'}">
+                ${rolling ? '순서 추첨 중...' : isChecked ? '상자에서 발표 번호 뽑기 완료' : `${rank}번째로 상자에서 번호 뽑기`}
+              </span>
+            </div>
+          `;
+        } else {
+          nameHtml = `
+            <div class="flex flex-col">
+              <span class="text-base sm:text-lg font-bold text-slate-400">추첨 대기 중</span>
+              <span class="text-xs text-slate-400">${rank}번 주자 슬롯</span>
+            </div>
+          `;
+        }
+
+        // 우측: 상태 필(Pill)
+        let rightBadgeHtml = '';
+        if (assigned && !rolling) {
+          if (isChecked) {
+            rightBadgeHtml = `
+              <span class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-emerald-600 text-white shadow-sm">
+                <span>✓</span>
+                <span>뽑기 완료</span>
+              </span>
+            `;
+          } else {
+            rightBadgeHtml = `
+              <span class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                대기
+              </span>
+            `;
+          }
+        } else if (rolling) {
+          rightBadgeHtml = `
+            <span class="shrink-0 inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white">
+              셔플
+            </span>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl border flex flex-col items-center justify-center shrink-0 font-black ${badgeStyle}">
+              <span class="text-[10px] leading-none opacity-80">순번</span>
+              <span class="text-lg sm:text-xl leading-tight">${rank}</span>
+            </div>
+            ${nameHtml}
+          </div>
+          ${rightBadgeHtml}
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    function renderAll(animateReveal = false, highlightIdx = -1) {
+      updateControlsState();
+      updateHeaderStatus();
+      renderSlots(animateReveal, highlightIdx);
+      updateFooterRemaining();
+    }
+
+    // 초기 렌더링 실행
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAll(false);
+    });
+  </script>
+</body>
+</html>
